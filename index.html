@@ -347,11 +347,22 @@ body.show-shop .shopscreen{display:flex}
     const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveKey"]);
     const key = await crypto.subtle.deriveKey({name:"PBKDF2", salt:b64(j.salt), iterations:ITER, hash:"SHA-256"},
                                               base, {name:"AES-GCM", length:256}, false, ["decrypt"]);
-    const pt = await crypto.subtle.decrypt({name:"AES-GCM", iv:b64(j.iv)}, key, b64(j.ct));
+    let pt = await crypto.subtle.decrypt({name:"AES-GCM", iv:b64(j.iv)}, key, b64(j.ct));
+    if (j.gz) pt = await new Response(new Blob([pt]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
     return JSON.parse(new TextDecoder().decode(pt));
   }
+  function note(msg){
+    let el = document.getElementById("remote-note");
+    if (!el) { el = document.createElement("div"); el.id = "remote-note";
+      el.style.cssText = "position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:99;background:#2a1d10;color:#f3c27a;padding:8px 14px;border-radius:10px;font:14px -apple-system,sans-serif";
+      document.body.appendChild(el); }
+    el.textContent = msg; el.style.display = msg ? "block" : "none";
+  }
   async function load(){
-    const j = await (await origFetch("data.enc?t=" + Date.now(), {cache:"no-store"})).json();
+    const r = await origFetch("data.enc?t=" + Date.now(), {cache:"no-store"});
+    if (!r.ok) { note("Снимок с домашнего мака ещё не пришёл — загляните через пару минут"); throw new Error("нет снимка"); }
+    const j = await r.json();
+    note("");
     let pw = lsGet();
     for (let i = 0; i < 5; i++){
       if (!pw) { pw = prompt("Пароль дашборда"); if (pw === null) throw new Error("нет пароля"); }
