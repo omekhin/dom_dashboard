@@ -575,12 +575,22 @@ function renderSpend(s, inc, bills){
   const dim = s.days_in_month, day = Math.max(1, s.day);
   const perDay = s.month_total / day;                        // текущий темп бытовых трат
   const forecast = perDay * dim;                             // бытовые к концу месяца при таком темпе
-  const netF = incTotal - forecast - fixedSum;
+  // ещё придёт до конца месяца: зарплата по графику, купоны/дивиденды и проценты по вкладам за оставшиеся дни
+  const st = lastState || {}, today = `${n.getFullYear()}-${pad(n.getMonth()+1)}-${pad(n.getDate())}`;
+  const monthEnd = new Date(n.getFullYear(), n.getMonth() + 1, 0), mEnd = `${monthEnd.getFullYear()}-${pad(monthEnd.getMonth()+1)}-${pad(monthEnd.getDate())}`;
+  const later = d => d && d > today && d <= mEnd;
+  const expSal = (st.incoming || []).filter(x => !x.transfer && later(x.date)).reduce((a,x)=>a+x.amount, 0);
+  const expPay = ((st.payments || {}).items || []).filter(x => later(x.income_date || x.date)).reduce((a,x)=>a+(x.amount||0), 0);
+  const daysLeft = dim - day;
+  const expInt = ((st.portfolio || {}).deposits || []).reduce((a,x)=>a + (x.per_day||0) * Math.max(0, Math.min(daysLeft, x.to ? Math.round((new Date(x.to) - n)/864e5) : daysLeft)), 0);
+  const expected = expSal + expPay + expInt;
+  const netF = incTotal + expected - forecast - fixedSum;
   $("ratio").style.display = incTotal ? "" : "none";
   $("ratio-fx").style.width = incTotal ? Math.min(100, fixedSum/incTotal*100) + "%" : "0";
   $("ratio-sp").style.width = incTotal ? Math.min(100, forecast/incTotal*100) + "%" : "0";
   $("net").innerHTML = incTotal
     ? `Останется к концу месяца <b class="num ${cls(netF)}" style="white-space:nowrap">≈ ${rub(netF)}</b>`
+      + (expected > 0 ? `<br><small class="faint">с учётом того, что ещё придёт: ${[expSal ? "зарплата " + kfmt(expSal) : "", expInt + expPay ? "проценты и купоны " + kfmt(Math.round(expInt + expPay)) : ""].filter(Boolean).join(", ")}</small>` : "")
     : "";
   const homeBudget = s.budget > 0 ? s.budget - fixedSum : 0;   // общий бюджет включает аренду
   if (homeBudget > 0){
