@@ -571,7 +571,7 @@ function renderSpend(s, inc, bills){
     ;
   $("inc-sub").textContent = interest ? `в т.ч. проценты ${rub(interest)}` : (li ? `${li.note || "доход"}, ${dshort(li.ts.slice(0,10))}` : "пока нет");
   const fixed = (bills||[]).filter(b=>b.is_spending);
-  const fixedSum = fixed.reduce((a,b)=>a+b.amount,0);      // аренда и т.п. — фикс за весь месяц
+  const fixedSum = fixed.reduce((a,b)=>a+(b.own ?? b.amount),0);   // аренда и т.п. — фикс за весь месяц (своя доля)
   const dim = s.days_in_month, day = Math.max(1, s.day);
   const perDay = s.month_total / day;                        // текущий темп бытовых трат
   const forecast = perDay * dim;                             // бытовые к концу месяца при таком темпе
